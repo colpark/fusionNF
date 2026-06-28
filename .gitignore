@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.DS_Store
+runs/
+*.egg-info/
+.pytest_cache/
+# Keep reports/ tracked (gate reports, figures, findings) but ignore stray large artifacts:
+reports/**/*.pt
+reports/**/*.npz
