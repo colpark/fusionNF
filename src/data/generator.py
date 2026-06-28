@@ -156,6 +156,16 @@ def _make_A(p: TrajParams, t_A: np.ndarray, dc: DataConfig,
 
 def _make_B(p: TrajParams, t_B: np.ndarray, dc: DataConfig,
             rng: np.random.Generator):
+    nyq = dc.modality_b.rate / 2.0
+    if dc.modality_b.carrier >= nyq:
+        raise ValueError(
+            f"AM carrier {dc.modality_b.carrier} Hz must be < Nyquist {nyq} Hz "
+            f"(rate_B={dc.modality_b.rate}); at/above Nyquist the carrier aliases "
+            f"to a constant and modality B collapses.")
+    if dc.modality_b.carrier <= p.f_max:
+        raise ValueError(
+            f"AM carrier {dc.modality_b.carrier} Hz should exceed f_max {p.f_max} Hz "
+            f"so AM sidebands stay separable from the trajectory band.")
     f_B = eval_traj(p, t_B)
     f_mid = 0.5 * (p.f_min + p.f_max)
     f_half = 0.5 * (p.f_max - p.f_min)

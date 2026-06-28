@@ -23,7 +23,7 @@ data:
     n_octaves: 3
   modality_b:
     rate: 48.0
-    carrier: 24.0
+    carrier: 18.0
     am_depth: 1.0
     noise_beta: 1.0
     n_octaves: 3
