@@ -13,10 +13,14 @@ from ..config import DataConfig, ModelConfig
 from .common import BaseFusion
 from .late_fusion import LateFusion
 from .early_fusion import EarlyFusion
-from .neural_field.amortized import AmortizedField
-from .neural_field.autodecode import AutoDecodedField
+from .neural_field.lainr import LAINRField
+from .neural_field.omnifield import OmniFieldFusion
 
-FAMILIES = ("late", "early", "nf_autodecode", "nf_amortized")
+# Two amortized neural-field arms (per user decision): LAINR (per-modality field +
+# fusion head) and OmniField (cross-modal crosstalk field). The auto-decoded
+# (functa/MAML) arm was dropped, so P4's amortization-spectrum prediction is
+# reframed as a LAINR-vs-OmniField comparison (see reports/findings).
+FAMILIES = ("late", "early", "nf_lainr", "nf_omnifield")
 
 
 def signal_lengths(data_cfg: DataConfig) -> tuple[int, int]:
@@ -54,12 +58,11 @@ def build_model(family: str, model_cfg: ModelConfig,
         return EarlyFusion(n_a=n_a, n_b=n_b, hidden=hidden, depth=depth,
                            latent_dim=latent)
 
-    if family == "nf_autodecode":
-        return AutoDecodedField(hidden=hidden, latent_dim=latent, depth=depth,
-                                f_max=field_f_max(data_cfg))
+    if family == "nf_lainr":
+        return LAINRField(hidden=hidden, latent_dim=latent, depth=depth,
+                          f_max=field_f_max(data_cfg))
 
-    if family == "nf_amortized":
-        return AmortizedField(hidden=hidden, latent_dim=latent, depth=depth,
-                              f_max=field_f_max(data_cfg))
+    if family == "nf_omnifield":
+        return OmniFieldFusion(hidden=hidden, latent_dim=latent, depth=depth)
 
     raise ValueError(f"unknown family {family!r}; expected one of {FAMILIES}")

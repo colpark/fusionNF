@@ -68,7 +68,8 @@ class EarlyFusion(BaseFusion):
             d_model=d, nhead=n_heads, dim_feedforward=2 * d,
             dropout=0.0, batch_first=True, activation="gelu", norm_first=True,
         )
-        self.transformer = nn.TransformerEncoder(layer, num_layers=max(1, depth))
+        self.transformer = nn.TransformerEncoder(
+            layer, num_layers=max(1, depth), enable_nested_tensor=False)
         self.head = nn.Linear(d, 1)
         # Project the pooled summary to latent_dim so ``z`` width is comparable
         # across families (used only by the probe, not by fuse).

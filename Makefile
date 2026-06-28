@@ -1,4 +1,4 @@
-.PHONY: smoke test data validate baselines train sweep report clean
+.PHONY: smoke test data validate baselines train recon probe sweep report clean
 
 PY ?= python3
 
@@ -22,8 +22,20 @@ validate:
 baselines:
 	$(PY) -m src.baselines.brackets
 
-train:      ## Phase 4: the four fusion families
-	@echo "Phase 4 not yet implemented"
+# Phase 4: train the four fusion families (auto-detects GPU). Override CONFIG/STEPS/NTRAIN.
+CONFIG ?= easy
+STEPS  ?= 3000
+NTRAIN ?= 1024
+train:
+	$(PY) -m src.models.train --config $(CONFIG) --steps $(STEPS) --n-train $(NTRAIN)
+
+# Phase 4: per-frequency-band reconstruction test for the NF arms.
+recon:
+	$(PY) -m src.models.recon_test
+
+# Phase 5: probe diagnostic (f(t) decodability vs fusion accuracy).
+probe:
+	$(PY) -m src.probe.frequency_probe --config $(CONFIG) --steps $(STEPS) --n-train $(NTRAIN)
 
 sweep:      ## Phase 6: difficulty x family matrix -> Pareto
 	@echo "Phase 6 not yet implemented"
