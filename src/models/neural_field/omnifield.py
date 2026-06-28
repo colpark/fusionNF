@@ -170,14 +170,13 @@ class OmniFieldFusion(BaseFusion):
         self.crosstalk = nn.ModuleList(_CrosstalkBlock(hidden) for _ in range(n_refine))
         self.dec_a = _Decoder(hidden)
         self.dec_b = _Decoder(hidden)
-        # pre-refinement per-modality field latents (probe representation)
+        # per-modality field latents -> fusion head (the decision path). The
+        # correspondence decision is made on the FIELD latents (the NF-fusion premise),
+        # NOT on crosstalk-mixed summaries: bidirectional crosstalk homogenizes the two
+        # modalities and erases the |z_a-z_b| agreement signal (verified: that variant
+        # sits at chance). The crosstalk instead serves reconstruction (below).
         self.proj_a = nn.Linear(hidden, latent_dim)
         self.proj_b = nn.Linear(hidden, latent_dim)
-        # post-refinement per-modality summaries -> fusion head (the decision path).
-        # A pooled bridge vector alone discards time-aligned agreement; the head with
-        # [z_a, z_b, z_a*z_b, |z_a-z_b|] features gives explicit access to it.
-        self.refa = nn.Linear(hidden, latent_dim)
-        self.refb = nn.Linear(hidden, latent_dim)
         self.head = FusionHead(latent_dim, hidden=hidden, mode=fusion_mode)
 
     def encode(self, A, t_A, B, t_B) -> dict:
@@ -199,18 +198,20 @@ class OmniFieldFusion(BaseFusion):
         return lat_a, lat_b, z
 
     def fuse(self, encoded: dict) -> torch.Tensor:
-        ref_a, ref_b, _ = self._refine(encoded["lat_a"], encoded["lat_b"])
-        ra = self.refa(ref_a.mean(dim=1))
-        rb = self.refb(ref_b.mean(dim=1))
-        return self.head(ra, rb)
+        # decision on the per-modality field latents (NF-fusion premise)
+        return self.head(encoded["z_a"], encoded["z_b"])
 
     def recon_loss(self, encoded: dict) -> torch.Tensor:
-        pred_a = self.dec_a(encoded["t_A"], encoded["lat_a"])
-        pred_b = self.dec_b(encoded["t_B"], encoded["lat_b"])
+        # crosstalk does its real job here: cross-modal refinement improves the
+        # conditioned-field reconstruction, which in turn shapes the field latents.
+        ref_a, ref_b, _ = self._refine(encoded["lat_a"], encoded["lat_b"])
+        pred_a = self.dec_a(encoded["t_A"], ref_a)
+        pred_b = self.dec_b(encoded["t_B"], ref_b)
         return torch.mean((pred_a - encoded["A"]) ** 2) + \
             torch.mean((pred_b - encoded["B"]) ** 2)
 
     @torch.no_grad()
     def reconstruct(self, A, t_A, B, t_B):
         enc = self.encode(A, t_A, B, t_B)
-        return (self.dec_a(t_A, enc["lat_a"]), self.dec_b(t_B, enc["lat_b"]))
+        ref_a, ref_b, _ = self._refine(enc["lat_a"], enc["lat_b"])
+        return (self.dec_a(t_A, ref_a), self.dec_b(t_B, ref_b))
