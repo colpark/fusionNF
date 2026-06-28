@@ -37,11 +37,19 @@ recon:
 probe:
 	$(PY) -m src.probe.frequency_probe --config $(CONFIG) --steps $(STEPS) --n-train $(NTRAIN)
 
-sweep:      ## Phase 6: difficulty x family matrix -> Pareto
-	@echo "Phase 6 not yet implemented"
+# Phase 6: difficulty x family sweep -> Pareto + knob figures. Override BASE/KNOB/etc.
+BASE   ?= hard
+KNOB   ?= snr_db
+VALUES ?= -6 -3 0 6 12
+SEEDS  ?= 0 1 2
+sweep:
+	$(PY) -m src.sweep.runner --base $(BASE) --knob $(KNOB) --values $(VALUES) \
+		--seeds $(SEEDS) --steps $(STEPS) --n-train $(NTRAIN)
+	$(PY) -m src.sweep.pareto
 
-report:     ## Phase 7: regenerate findings from saved artifacts
-	@echo "Phase 7 not yet implemented"
+# Phase 7: regenerate findings.md from saved artifacts (single reproduce command).
+report:
+	$(PY) -m src.findings
 
 clean:
 	rm -rf runs/_test runs/tiny_* runs/rep_* runs/diff_*

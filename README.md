@@ -9,12 +9,47 @@ predictions (P1–P4) are documented in the project brief. This harness is built
 
 ## Status
 
-- **Phase 0 — Scaffolding & determinism**: complete (config schema, seeding,
-  run-dir convention, logging, param/FLOP accounting, smoke loop, determinism
-  tests). See `reports/phase0_gate.md`.
+All phases built. Gate reports in `reports/phase*_gate.md`.
 
-Later phases (data generator, dataset validation C1–C7, baselines, four fusion
-families, probe diagnostic, sweep, findings) are not yet implemented.
+- **Phase 0** scaffolding & determinism — complete.
+- **Phase 1** data generator — complete (gate passed).
+- **Phase 2** dataset validation C1–C7 — complete (all pass on easy + hard).
+- **Phase 3** baselines & bracket — complete (oracle 1.0/0.99, classical 0.72/0.61,
+  chance ~0.5).
+- **Phase 4** four fusion families (`late`, `early`, `nf_lainr`, `nf_omnifield`) —
+  built & verified learnable; final gate numbers come from the remote GPU run.
+- **Phase 5** probe diagnostic — built.
+- **Phase 6** sweep + Pareto — built; the heavy matrix is a remote GPU job.
+- **Phase 7** findings generator — built (`make report`).
+
+The two neural-field arms are amortized real architectures: **LAINR** (locality-aware
+generalizable INR) and **OmniField** (conditioned multimodal neural field). The
+auto-decoded/functa arm was dropped by design; P4 is reframed as LAINR vs OmniField.
+
+## Running the scientific pipeline (remote GPU)
+
+`make` targets auto-detect CUDA. Heavy training belongs on the GPU server:
+
+```bash
+uv sync                       # one-time env setup
+uv run make data              # Phase 1: example figures
+uv run make validate          # Phase 2: dataset criteria C1–C7
+uv run make baselines         # Phase 3: chance / classical / oracle bracket
+uv run make train             # Phase 4: train 4 families -> reports/phase4_results.json
+uv run make recon             # Phase 4: NF per-band reconstruction
+uv run make probe             # Phase 5: f(t) decodability vs fusion accuracy
+uv run make sweep             # Phase 6: difficulty x family -> Pareto + knob figures
+uv run make report            # Phase 7: regenerate findings.md from artifacts
+```
+
+Tunable knobs (all have defaults): `CONFIG`, `STEPS`, `NTRAIN` for training;
+`BASE`, `KNOB`, `VALUES`, `SEEDS` for the sweep. Example full sweep:
+
+```bash
+uv run make sweep BASE=hard KNOB=snr_db VALUES="-6 -3 0 6 12" SEEDS="0 1 2" STEPS=3000 NTRAIN=1024
+uv run make sweep BASE=hard KNOB=rate_ratio VALUES="0.4 0.6 0.8 1.0" SEEDS="0 1 2"
+uv run make report
+```
 
 ## Environment (uv)
 
