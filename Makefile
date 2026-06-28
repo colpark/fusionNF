@@ -1,4 +1,4 @@
-.PHONY: smoke test validate baselines train sweep report clean
+.PHONY: smoke test data validate baselines train sweep report clean
 
 PY ?= python3
 
@@ -10,12 +10,17 @@ smoke:
 test:
 	$(PY) -m pytest tests/ -q
 
-# Placeholders wired up in later phases:
-validate:   ## Phase 2: dataset criteria C1-C7
-	@echo "Phase 2 not yet implemented"
+# Phase 1: render example pairs (signals + spectrograms + f(t)) to reports/.
+data:
+	$(PY) -m src.data.examples
 
-baselines:  ## Phase 3: oracle / wavelet-coherence / chance brackets
-	@echo "Phase 3 not yet implemented"
+# Phase 2: dataset criteria C1-C7 (easy + hard). --no-baselines skips C6/C7.
+validate:
+	$(PY) -m src.validation.criteria_tests
+
+# Phase 3: oracle / wavelet-coherence / chance brackets (easy + hard).
+baselines:
+	$(PY) -m src.baselines.brackets
 
 train:      ## Phase 4: the four fusion families
 	@echo "Phase 4 not yet implemented"
