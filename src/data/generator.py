@@ -182,6 +182,12 @@ def _make_B(p: TrajParams, t_B: np.ndarray, dc: DataConfig,
 # Top-level generate().
 # --------------------------------------------------------------------------- #
 def generate(config: DataConfig, seed: int, return_components: bool = False) -> Sample:
+    # Dispatch to an alternate observation model when configured (keeps the whole
+    # harness -- dataset, validation, models, probe, sweep -- generator-agnostic).
+    if getattr(config, "generator", "chirp") == "ecg_ppg":
+        from .ecg_ppg import generate_ecg_ppg
+        return generate_ecg_ppg(config, seed, return_components)
+
     rng = np.random.default_rng(seed)
 
     label = int(rng.random() < config.p_positive)

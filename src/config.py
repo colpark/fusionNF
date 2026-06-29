@@ -58,6 +58,7 @@ class ModalityBConfig:
 @dataclass
 class DataConfig:
     name: str = "tiny"
+    generator: str = "chirp"        # "chirp" (FM/AM) | "ecg_ppg" (cardiac)
     duration: float = 4.0           # T, seconds
     snr_db: float = 0.0             # matching-band SNR relative to background (difficulty)
     jitter: float = 0.0             # fractional inter-modal timing jitter/warp (0 = none)
