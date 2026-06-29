@@ -1,0 +1,73 @@
+{
+  "code_sha": "345c17b7103bead31ee1d0ae88d492865c773834",
+  "date": "2026-06-29",
+  "device": "cuda",
+  "budget": {"steps": 5000, "n_train": 1024, "n_test": 256, "lr": 1e-3,
+             "optimizer": "adam", "warmup_frac": 0.1, "grad_clip": 1.0,
+             "recon_weight": 0.3, "seeds": [0, 1, 2]},
+  "bracket": {
+    "easy": {"chance": 0.56, "classical_coherence": 0.688, "oracle": 1.000},
+    "hard": {"chance": 0.52, "classical_coherence": 0.613, "oracle": 0.988}
+  },
+  "phase4": {
+    "easy": {"late": 0.926, "early": 0.914, "nf_lainr": 0.902, "nf_omnifield": 0.922},
+    "hard": {"late": 0.488, "early": 0.477, "nf_lainr": 0.551, "nf_omnifield": 0.512},
+    "fuse_flops": {"late": 528384, "early": 341856256, "nf_lainr": 790528, "nf_omnifield": 790528},
+    "enc_flops": {"late": 400556032, "early": 21364736, "nf_lainr": 837287936, "nf_omnifield_easy": 1791492096, "nf_omnifield_hard": 1572864000}
+  },
+  "sweep_snr_db": {
+    "values": [12, 6, 3, 0, -3, -6],
+    "acc": {
+      "late":        [0.924, 0.665, 0.486, 0.488, 0.495, 0.493],
+      "early":       [0.898, 0.779, 0.676, 0.526, 0.534, 0.513],
+      "nf_lainr":    [0.898, 0.854, 0.836, 0.797, 0.714, 0.552],
+      "nf_omnifield":[0.915, 0.805, 0.788, 0.633, 0.516, 0.488]
+    },
+    "acc_std": {
+      "late":        [0.024, 0.134, 0.024, 0.013, 0.007, 0.021],
+      "early":       [0.008, 0.029, 0.045, 0.013, 0.009, 0.010],
+      "nf_lainr":    [0.027, 0.016, 0.015, 0.015, 0.096, 0.092],
+      "nf_omnifield":[0.005, 0.017, 0.026, 0.011, 0.017, 0.015]
+    },
+    "linear_r2": {
+      "late":        [0.615, 0.529, 0.436, 0.392, 0.348, 0.329],
+      "early":       [0.667, 0.492, 0.429, 0.427, 0.364, 0.351],
+      "nf_lainr":    [0.886, 0.831, 0.835, 0.811, 0.773, 0.617],
+      "nf_omnifield":[0.944, 0.902, 0.820, 0.624, 0.404, 0.365]
+    },
+    "shuffled_pairs_control": {"late": 0.512, "early": 0.512, "nf_lainr": 0.516, "nf_omnifield": 0.488}
+  },
+  "sweep_nonstationarity": {
+    "values": [0.15, 0.3, 0.5, 0.8],
+    "acc": {
+      "late":        [0.922, 0.762, 0.706, 0.693],
+      "early":       [0.906, 0.872, 0.747, 0.574],
+      "nf_lainr":    [0.896, 0.924, 0.887, 0.797],
+      "nf_omnifield":[0.915, 0.759, 0.555, 0.637]
+    },
+    "acc_std": {
+      "late":        [0.019, 0.194, 0.154, 0.067],
+      "early":       [0.022, 0.038, 0.073, 0.085],
+      "nf_lainr":    [0.036, 0.004, 0.000, 0.075],
+      "nf_omnifield":[0.005, 0.051, 0.055, 0.109]
+    },
+    "linear_r2": {
+      "late":        [0.613, 0.286, 0.159, 0.081],
+      "early":       [0.615, 0.495, 0.266, 0.167],
+      "nf_lainr":    [0.885, 0.770, 0.600, 0.447],
+      "nf_omnifield":[0.944, 0.720, 0.564, 0.396]
+    },
+    "shuffled_pairs_control": {"late": 0.512, "early": 0.488, "nf_lainr": 0.516, "nf_omnifield": 0.488}
+  },
+  "probe_easy": {
+    "fusion_acc": {"late": 0.922, "early": 0.910, "nf_lainr": 0.891, "nf_omnifield": 0.922},
+    "linear_r2":  {"late": 0.649, "early": 0.608, "nf_lainr": 0.919, "nf_omnifield": 0.951},
+    "mlp_r2":     {"late": 0.341, "early": 0.353, "nf_lainr": 0.667, "nf_omnifield": 0.691}
+  },
+  "verdicts": {
+    "P1_advantage_widens_with_difficulty": "supported",
+    "P2_nf_near_early_at_lower_fusion_flops": "supported_with_cost_caveat",
+    "P3_ft_more_decodable_from_nf_latent": "supported",
+    "P4_lainr_vs_omnifield": "lainr_wins"
+  }
+}

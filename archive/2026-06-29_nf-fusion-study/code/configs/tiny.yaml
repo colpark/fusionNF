@@ -1,0 +1,46 @@
+seed: 0
+tag: tiny
+out_root: runs
+data:
+  name: tiny
+  duration: 2.0
+  snr_db: 6.0
+  jitter: 0.0
+  p_positive: 0.5
+  trajectory:
+    f0: 5.0
+    f_min: 1.0
+    f_max: 12.0
+    n_components: 2
+    nu_min: 0.05
+    nu_max: 0.3
+    amp_min: 0.5
+    amp_max: 2.0
+  modality_a:
+    rate: 64.0
+    signal_amp: 1.0
+    noise_beta: 1.0
+    n_octaves: 3
+  modality_b:
+    rate: 48.0
+    carrier: 18.0
+    am_depth: 1.0
+    noise_beta: 1.0
+    n_octaves: 3
+model:
+  family: placeholder
+  hidden: 16
+  depth: 2
+  latent_dim: 32
+  param_budget: 0
+train:
+  steps: 30
+  batch_size: 8
+  lr: 0.001
+  optimizer: adam
+  weight_decay: 0.0
+  n_train: 64
+  n_val: 32
+  n_test: 32
+  log_every: 10
+  device: cpu

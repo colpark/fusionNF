@@ -1,0 +1,46 @@
+seed: 0
+tag: hard
+out_root: runs
+data:
+  name: hard
+  duration: 4.0
+  snr_db: -3.0
+  jitter: 0.02
+  p_positive: 0.5
+  trajectory:
+    f0: 5.0
+    f_min: 1.0
+    f_max: 12.0
+    n_components: 4
+    nu_min: 0.1
+    nu_max: 0.5
+    amp_min: 0.5
+    amp_max: 2.5
+  modality_a:
+    rate: 160.0
+    signal_amp: 1.0
+    noise_beta: 1.0
+    n_octaves: 6
+  modality_b:
+    rate: 96.0
+    carrier: 40.0
+    am_depth: 1.0
+    noise_beta: 1.0
+    n_octaves: 6
+model:
+  family: placeholder
+  hidden: 64
+  depth: 2
+  latent_dim: 32
+  param_budget: 0
+train:
+  steps: 300
+  batch_size: 32
+  lr: 0.001
+  optimizer: adam
+  weight_decay: 0.0
+  n_train: 1024
+  n_val: 256
+  n_test: 256
+  log_every: 10
+  device: cpu
