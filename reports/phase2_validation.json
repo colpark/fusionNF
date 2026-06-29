@@ -1,6 +1,6 @@
 {
-  "easy": {
-    "tag": "easy",
+  "ecg_ppg_hard": {
+    "tag": "ecg_ppg_hard",
     "all_pass": true,
     "results": [
       {
@@ -9,17 +9,17 @@
         "detail": {
           "A": {
             "modality": "A",
-            "test_acc": 0.578125,
-            "train_acc": 0.5625,
-            "p_value_above_chance": 0.046345015449188995,
-            "n_test": 128
+            "test_acc": 0.515625,
+            "train_acc": 0.826171875,
+            "p_value_above_chance": 0.33091643039222796,
+            "n_test": 256
           },
           "B": {
             "modality": "B",
-            "test_acc": 0.5625,
-            "train_acc": 0.55859375,
-            "p_value_above_chance": 0.0923413135298315,
-            "n_test": 128
+            "test_acc": 0.48828125,
+            "train_acc": 1.0,
+            "p_value_above_chance": 0.669083569607772,
+            "n_test": 256
           }
         },
         "alpha": 0.01
@@ -29,13 +29,13 @@
         "passed": true,
         "detail": {
           "A": {
-            "mmd2": -0.004660687484227211,
-            "p_value": 1.0,
+            "mmd2": 0.0006778096894144436,
+            "p_value": 0.31343283582089554,
             "n_per_class": 128
           },
           "B": {
-            "mmd2": -0.0014174882839788072,
-            "p_value": 0.582089552238806,
+            "mmd2": -0.0016373964601845703,
+            "p_value": 0.8159203980099502,
             "n_per_class": 128
           }
         },
@@ -46,29 +46,33 @@
         "passed": true,
         "detail": {
           "A": {
-            "resolvable_bands": 4,
-            "configured_octaves": 4,
-            "measured_snr_db": 11.999999945377894,
-            "configured_snr_db": 12.0,
+            "resolvable_bands": 6,
+            "configured_octaves": 6,
+            "measured_snr_db": -2.999999957439184,
+            "configured_snr_db": -3.0,
             "band_powers": [
-              1049.3956065731802,
-              999.9459453717659,
-              1031.612287382341,
-              1048.5601795487976
+              2409.9393099773415,
+              2413.964786524282,
+              2515.73178498091,
+              2417.323660263256,
+              2377.6786068444685,
+              2361.115922761807
             ],
             "snr_ok": true,
             "bands_ok": true
           },
           "B": {
-            "resolvable_bands": 4,
-            "configured_octaves": 4,
-            "measured_snr_db": 12.000000007022908,
-            "configured_snr_db": 12.0,
+            "resolvable_bands": 6,
+            "configured_octaves": 6,
+            "measured_snr_db": -3.000000008748676,
+            "configured_snr_db": -3.0,
             "band_powers": [
-              573.9841411454383,
-              573.8579529672281,
-              585.585466643238,
-              573.2292227209505
+              2795.4118495971156,
+              2689.6476024225753,
+              2754.672643485304,
+              2639.3797530660318,
+              2711.7560211241503,
+              2401.065570473144
             ],
             "snr_ok": true,
             "bands_ok": true
@@ -81,155 +85,13 @@
         "passed": true,
         "detail": {
           "rate_A": 128.0,
-          "rate_B": 128.0,
-          "len_A": 512,
+          "rate_B": 64.0,
+          "len_A": 1024,
           "len_B": 512,
-          "rate_mismatch": false,
-          "len_mismatch": false,
-          "configured_jitter": 0.0,
-          "measured_jitter_std_dt": 0.0,
-          "jitter_ok": true
-        }
-      },
-      {
-        "name": "C5_ground_truth_present",
-        "passed": true,
-        "detail": {
-          "f_A_shape_matches_A": true,
-          "f_B_shape_matches_B": true,
-          "all_finite": true,
-          "checked": 32
-        }
-      },
-      {
-        "name": "C6_difficulty_monotone",
-        "passed": true,
-        "detail": {
-          "snr_grid": [
-            -6.0,
-            0.0,
-            6.0,
-            12.0
-          ],
-          "oracle_acc": [
-            1.0,
-            1.0,
-            1.0,
-            1.0
-          ],
-          "coherence_acc": [
-            0.525,
-            0.55,
-            0.625,
-            0.695
-          ],
-          "oracle_flat": true,
-          "coherence_monotone": true
-        }
-      },
-      {
-        "name": "C7_solvable",
-        "passed": true,
-        "detail": {
-          "oracle_acc": 1.0,
-          "coherence_acc": 0.71484375
-        }
-      }
-    ]
-  },
-  "hard": {
-    "tag": "hard",
-    "all_pass": true,
-    "results": [
-      {
-        "name": "C1_joint_only_label",
-        "passed": true,
-        "detail": {
-          "A": {
-            "modality": "A",
-            "test_acc": 0.51953125,
-            "train_acc": 0.9609375,
-            "p_value_above_chance": 0.28693068829727686,
-            "n_test": 256
-          },
-          "B": {
-            "modality": "B",
-            "test_acc": 0.51953125,
-            "train_acc": 0.982421875,
-            "p_value_above_chance": 0.28693068829727686,
-            "n_test": 256
-          }
-        },
-        "alpha": 0.01
-      },
-      {
-        "name": "C2_marginal_invariance",
-        "passed": true,
-        "detail": {
-          "A": {
-            "mmd2": 0.0013319350519804818,
-            "p_value": 0.17412935323383086,
-            "n_per_class": 128
-          },
-          "B": {
-            "mmd2": -0.00296715328750774,
-            "p_value": 0.9900497512437811,
-            "n_per_class": 128
-          }
-        },
-        "alpha": 0.05
-      },
-      {
-        "name": "C3_multiscale_and_snr",
-        "passed": true,
-        "detail": {
-          "A": {
-            "resolvable_bands": 6,
-            "configured_octaves": 6,
-            "measured_snr_db": -3.0000000375340448,
-            "configured_snr_db": -3.0,
-            "band_powers": [
-              34254.98553004415,
-              34257.863574311785,
-              34837.576230791,
-              34891.97349968846,
-              34828.20214786079,
-              30976.447715265775
-            ],
-            "snr_ok": true,
-            "bands_ok": true
-          },
-          "B": {
-            "resolvable_bands": 6,
-            "configured_octaves": 6,
-            "measured_snr_db": -2.999999987477076,
-            "configured_snr_db": -3.0,
-            "band_powers": [
-              8621.245200553674,
-              8392.451858373026,
-              9563.884666091273,
-              8221.976546034757,
-              7892.398138145909,
-              7987.388525053152
-            ],
-            "snr_ok": true,
-            "bands_ok": true
-          }
-        },
-        "snr_tol_db": 1.0
-      },
-      {
-        "name": "C4_grid_mismatch",
-        "passed": true,
-        "detail": {
-          "rate_A": 160.0,
-          "rate_B": 96.0,
-          "len_A": 640,
-          "len_B": 384,
           "rate_mismatch": true,
           "len_mismatch": true,
           "configured_jitter": 0.02,
-          "measured_jitter_std_dt": 0.00030348231666721404,
+          "measured_jitter_std_dt": 0.00045656602014787495,
           "jitter_ok": true
         }
       },
@@ -241,40 +103,6 @@
           "f_B_shape_matches_B": true,
           "all_finite": true,
           "checked": 32
-        }
-      },
-      {
-        "name": "C6_difficulty_monotone",
-        "passed": true,
-        "detail": {
-          "snr_grid": [
-            -6.0,
-            0.0,
-            6.0,
-            12.0
-          ],
-          "oracle_acc": [
-            0.99,
-            0.99,
-            0.99,
-            0.99
-          ],
-          "coherence_acc": [
-            0.56,
-            0.695,
-            0.875,
-            0.96
-          ],
-          "oracle_flat": true,
-          "coherence_monotone": true
-        }
-      },
-      {
-        "name": "C7_solvable",
-        "passed": true,
-        "detail": {
-          "oracle_acc": 0.98828125,
-          "coherence_acc": 0.61328125
         }
       }
     ]
