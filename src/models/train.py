@@ -149,6 +149,49 @@ def train_model(model: BaseFusion, data_cfg: DataConfig, model_cfg: ModelConfig,
     return result
 
 
+def _params_at(family: str, hidden: int, depth: int, latent: int,
+               data_cfg: DataConfig) -> int:
+    """Trainable param count for a family built at a given hidden width."""
+    mc = ModelConfig(family=family, hidden=hidden, depth=depth, latent_dim=latent)
+    return count_params(build_model(family, mc, data_cfg))
+
+
+def match_hidden(family: str, base: ModelConfig, data_cfg: DataConfig,
+                 target: int, hi: int = 1024, step: int = 4) -> int:
+    """Smallest hidden (fine step) whose param count >= target; param count is
+    monotonic in hidden. Returns base.hidden if already >= target."""
+    if _params_at(family, base.hidden, base.depth, base.latent_dim, data_cfg) >= target:
+        return base.hidden
+    h = base.hidden
+    while h <= hi:
+        if _params_at(family, h, base.depth, base.latent_dim, data_cfg) >= target:
+            return h
+        h += step
+    return hi
+
+
+def matched_plan(families, base: ModelConfig, data_cfg: DataConfig,
+                 tol: float = 0.6) -> tuple[dict, int]:
+    """Per-family hidden sized to match the LARGEST family's param count.
+
+    Returns {family: (hidden, params)} and the target. Asserts every family's
+    param count is within `tol` of every other's, so the comparison is genuinely
+    parameter-matched (operating rule 4) -- not just step/data matched.
+    """
+    base_counts = {f: _params_at(f, base.hidden, base.depth, base.latent_dim, data_cfg)
+                   for f in families}
+    target = max(base_counts.values())
+    plan = {}
+    for f in families:
+        h = match_hidden(f, base, data_cfg, target)
+        plan[f] = (h, _params_at(f, h, base.depth, base.latent_dim, data_cfg))
+    counts = [p for _, p in plan.values()]
+    ratio = max(counts) / min(counts)
+    assert ratio <= 1.0 + tol, (
+        f"param matching failed (max/min={ratio:.2f} > {1 + tol}): {plan}")
+    return plan, target
+
+
 def _flop_split(model: BaseFusion, batch: dict) -> tuple[int, int]:
     """Measure encode-FLOPs and fuse-FLOPs separately for one batch."""
     model.eval()
@@ -163,11 +206,12 @@ def _flop_split(model: BaseFusion, batch: dict) -> tuple[int, int]:
 
 def gate_run(config: str = "easy", steps: int = 5000, n_train: int = 1024,
              device: str | None = None, recon_weight: float = 0.3,
-             seed: int | None = None) -> dict:
+             seed: int | None = None, match_params: bool = True) -> dict:
     """Train all four families on a config and report acc + FLOP split.
 
-    Defaults are sized for a GPU run (the Phase 4 gate). On CPU, pass a smaller
-    --steps/--n-train. Writes reports/phase4_results.json and returns the dict.
+    With match_params (default), late/early are widened to the largest family's
+    param count so the comparison is parameter-matched, not capacity-confounded.
+    Writes reports/phase4_results.json and returns the dict.
     """
     exp = load_experiment(str(_REPO_ROOT / "configs" / f"{config}.yaml"))
     data_cfg = exp.data
@@ -178,8 +222,16 @@ def gate_run(config: str = "easy", steps: int = 5000, n_train: int = 1024,
                      n_train=n_train, n_val=128, n_test=256,
                      log_every=max(1, steps // 4), device=dev)
 
-    print(f"Phase-4 gate on '{data_cfg.name}' device={dev} "
-          f"(steps={tc.steps}, n_train={tc.n_train}, n_test={tc.n_test})\n")
+    if match_params:
+        plan, target = matched_plan(FAMILIES, exp.model, data_cfg)
+        print(f"param-matched (target≈{target:,}): " +
+              ", ".join(f"{f} h{h}→{p:,}" for f, (h, p) in plan.items()))
+    else:
+        plan = {f: (exp.model.hidden, None) for f in FAMILIES}
+
+    print(f"\nPhase-4 gate on '{data_cfg.name}' device={dev} "
+          f"(steps={tc.steps}, n_train={tc.n_train}, n_test={tc.n_test}, "
+          f"match_params={match_params})\n")
     header = f"{'family':<16}{'test_acc':>9}{'val_acc':>9}{'params':>10}" \
              f"{'enc_FLOPs':>14}{'fuse_FLOPs':>14}"
     print(header)
@@ -193,7 +245,7 @@ def gate_run(config: str = "easy", steps: int = 5000, n_train: int = 1024,
 
     results = {}
     for family in FAMILIES:
-        model_cfg = ModelConfig(family=family, hidden=exp.model.hidden,
+        model_cfg = ModelConfig(family=family, hidden=plan[family][0],
                                 depth=exp.model.depth,
                                 latent_dim=exp.model.latent_dim)
         model = seeded_build(family, model_cfg, data_cfg, base_seed)
@@ -229,6 +281,9 @@ if __name__ == "__main__":
     ap.add_argument("--n-train", type=int, default=1024)
     ap.add_argument("--device", default=None, help="cuda|mps|cpu (default: auto)")
     ap.add_argument("--recon-weight", type=float, default=0.3)
+    ap.add_argument("--no-match-params", action="store_true",
+                    help="disable parameter matching (capacity-confounded comparison)")
     args = ap.parse_args()
     gate_run(config=args.config, steps=args.steps, n_train=args.n_train,
-             device=args.device, recon_weight=args.recon_weight)
+             device=args.device, recon_weight=args.recon_weight,
+             match_params=not args.no_match_params)

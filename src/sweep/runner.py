@@ -27,7 +27,7 @@ from ..data.dataset import make_loaders
 from ..data.transforms import apply_norm, fit_norm
 from ..utils.device import auto_device
 from ..models.registry import build_model, FAMILIES
-from ..models.train import train_model, seeded_build, _flop_split, _prep
+from ..models.train import train_model, seeded_build, matched_plan, _flop_split, _prep
 from ..probe.frequency_probe import probe_model
 
 _REPO = Path(__file__).resolve().parents[2]
@@ -52,10 +52,11 @@ def _set_knob(dc: DataConfig, knob: str, value) -> DataConfig:
 
 
 def run_cell(family: str, dc: DataConfig, exp_model: ModelConfig, tc: TrainConfig,
-             seed: int, recon_weight: float, probe_n: int) -> dict:
+             seed: int, recon_weight: float, probe_n: int,
+             hidden: int | None = None) -> dict:
     """Train one family on one config/seed; return accuracy, probe-R^2, FLOPs."""
-    mc = ModelConfig(family=family, hidden=exp_model.hidden, depth=exp_model.depth,
-                     latent_dim=exp_model.latent_dim)
+    mc = ModelConfig(family=family, hidden=hidden or exp_model.hidden,
+                     depth=exp_model.depth, latent_dim=exp_model.latent_dim)
     model = seeded_build(family, mc, dc, seed)
     res = train_model(model, dc, mc, tc, seed, recon_weight=recon_weight)
     pr = probe_model(model, dc, seed, min(tc.n_train, probe_n), tc.n_test, device=tc.device)
@@ -115,14 +116,21 @@ def shuffled_pairs_control(family: str, dc: DataConfig, exp_model: ModelConfig,
 
 def sweep(base: str, knob: str, values: list, families: list, seeds: list,
           steps: int, n_train: int, device: str | None, recon_weight: float,
-          controls: bool) -> dict:
+          controls: bool, match_params: bool = True) -> dict:
     exp = load_experiment(str(_REPO / "configs" / f"{base}.yaml"))
     dev = auto_device(device)
     tc0 = dict(steps=steps, batch_size=32, lr=1e-3, optimizer="adam",
                n_train=n_train, n_val=128, n_test=256, log_every=max(1, steps),
                device=dev)
+    # parameter-match all families to the largest (computed once on the base config)
+    if match_params:
+        plan, target = matched_plan(tuple(families), exp.model, exp.data)
+        print(f"param-matched (target≈{target:,}): " +
+              ", ".join(f"{f} h{h}→{p:,}" for f, (h, p) in plan.items()))
+    else:
+        plan = {f: (exp.model.hidden, None) for f in families}
     print(f"Sweep base={base} knob={knob} values={values} families={families} "
-          f"seeds={seeds} device={dev}")
+          f"seeds={seeds} device={dev} match_params={match_params}")
 
     cells = []
     for value in values:
@@ -131,7 +139,8 @@ def sweep(base: str, knob: str, values: list, families: list, seeds: list,
         for family in families:
             accs, lin, mlp, encf, fusef = [], [], [], [], []
             for seed in seeds:
-                r = run_cell(family, dc, exp.model, tc, seed, recon_weight, n_train)
+                r = run_cell(family, dc, exp.model, tc, seed, recon_weight, n_train,
+                             hidden=plan[family][0])
                 accs.append(r["test_acc"]); lin.append(r["linear_r2"])
                 mlp.append(r["mlp_r2"]); encf.append(r["enc_flops"]); fusef.append(r["fuse_flops"])
             cell = {"knob": knob, "value": value, "family": family,
@@ -174,11 +183,13 @@ def main():
     ap.add_argument("--device", default=None)
     ap.add_argument("--recon-weight", type=float, default=0.3)
     ap.add_argument("--no-controls", action="store_true")
+    ap.add_argument("--no-match-params", action="store_true")
     a = ap.parse_args()
     # numeric knob values
     vals = [float(v) if a.knob != "n_components" else int(v) for v in a.values]
     sweep(a.base, a.knob, vals, a.families, a.seeds, a.steps, a.n_train,
-          a.device, a.recon_weight, controls=not a.no_controls)
+          a.device, a.recon_weight, controls=not a.no_controls,
+          match_params=not a.no_match_params)
 
 
 if __name__ == "__main__":

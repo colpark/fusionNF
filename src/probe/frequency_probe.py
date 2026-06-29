@@ -135,7 +135,7 @@ def run(config: str = "easy", steps: int = 3000, n_train: int = 1024,
     from ..config import ModelConfig, TrainConfig, load_experiment
     from ..utils.device import auto_device
     from ..models.registry import FAMILIES
-    from ..models.train import train_model, seeded_build
+    from ..models.train import train_model, seeded_build, matched_plan
 
     repo = Path(__file__).resolve().parents[2]
     exp = load_experiment(str(repo / "configs" / f"{config}.yaml"))
@@ -144,12 +144,14 @@ def run(config: str = "easy", steps: int = 3000, n_train: int = 1024,
     base_seed = exp.seed
     tc = TrainConfig(steps=steps, batch_size=32, lr=1e-3, n_train=n_train,
                      n_val=128, n_test=256, log_every=max(1, steps // 2), device=dev)
-    print(f"Phase-5 probe on '{config}' device={dev} (steps={steps}, n_train={n_train})\n")
+    plan, target = matched_plan(FAMILIES, exp.model, dc)
+    print(f"Phase-5 probe on '{config}' device={dev} (steps={steps}, n_train={n_train}); "
+          f"param-matched target≈{target:,}\n")
     header = f"{'family':<16}{'fusion_acc':>11}{'lin_R2':>9}{'mlp_R2':>9}"
     print(header); print("-" * len(header))
     results = {}
     for fam in FAMILIES:
-        mc = ModelConfig(family=fam, hidden=exp.model.hidden, depth=exp.model.depth,
+        mc = ModelConfig(family=fam, hidden=plan[fam][0], depth=exp.model.depth,
                          latent_dim=exp.model.latent_dim)
         model = seeded_build(fam, mc, dc, base_seed)
         res = train_model(model, dc, mc, tc, base_seed, recon_weight=0.3)
