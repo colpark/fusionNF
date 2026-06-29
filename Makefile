@@ -2,6 +2,12 @@
 
 PY ?= python3
 
+# GPU selection: `make train DEVICE=cuda:1` runs on the second GPU. Equivalent:
+#   export NF_DEVICE=cuda:1   (honored by every entry point, incl. make targets)
+#   export CUDA_VISIBLE_DEVICES=1   (OS-level; "cuda" then = physical GPU 1)
+DEVICE  ?=
+DEVFLAG := $(if $(strip $(DEVICE)),--device $(DEVICE),)
+
 # Phase 0: end-to-end scaffolding smoke on the tiny config (CPU, seconds).
 smoke:
 	$(PY) -m src.smoke --config configs/tiny.yaml
@@ -27,7 +33,7 @@ CONFIG ?= easy
 STEPS  ?= 5000
 NTRAIN ?= 1024
 train:
-	$(PY) -m src.models.train --config $(CONFIG) --steps $(STEPS) --n-train $(NTRAIN)
+	$(PY) -m src.models.train --config $(CONFIG) --steps $(STEPS) --n-train $(NTRAIN) $(DEVFLAG)
 
 # Phase 4: per-frequency-band reconstruction test for the NF arms.
 recon:
@@ -35,7 +41,7 @@ recon:
 
 # Phase 5: probe diagnostic (f(t) decodability vs fusion accuracy).
 probe:
-	$(PY) -m src.probe.frequency_probe --config $(CONFIG) --steps $(STEPS) --n-train $(NTRAIN)
+	$(PY) -m src.probe.frequency_probe --config $(CONFIG) --steps $(STEPS) --n-train $(NTRAIN) $(DEVFLAG)
 
 # Real ECG+PPG (BIDMC): download data, then train the four families on real correspondence.
 N ?= 53
@@ -43,7 +49,7 @@ bidmc-data:
 	bash scripts/download_bidmc.sh $(N)
 
 real-ecg-ppg:
-	$(PY) -m src.real.train_real --steps $(STEPS) --seeds 0 1 2
+	$(PY) -m src.real.train_real --steps $(STEPS) --seeds 0 1 2 $(DEVFLAG)
 
 # Phase 6: difficulty x family sweep -> Pareto + knob figures. Override BASE/KNOB/etc.
 BASE   ?= hard
@@ -52,7 +58,7 @@ VALUES ?= -6 -3 0 6 12
 SEEDS  ?= 0 1 2
 sweep:
 	$(PY) -m src.sweep.runner --base $(BASE) --knob $(KNOB) --values $(VALUES) \
-		--seeds $(SEEDS) --steps $(STEPS) --n-train $(NTRAIN)
+		--seeds $(SEEDS) --steps $(STEPS) --n-train $(NTRAIN) $(DEVFLAG)
 	$(PY) -m src.sweep.pareto
 
 # Phase 7: regenerate findings.md from saved artifacts (single reproduce command).
