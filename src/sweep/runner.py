@@ -116,7 +116,8 @@ def shuffled_pairs_control(family: str, dc: DataConfig, exp_model: ModelConfig,
 
 def sweep(base: str, knob: str, values: list, families: list, seeds: list,
           steps: int, n_train: int, device: str | None, recon_weight: float,
-          controls: bool, match_params: bool = True) -> dict:
+          controls: bool, match_params: bool = True,
+          out_path: str = "reports/phase6_sweep.json") -> dict:
     exp = load_experiment(str(_REPO / "configs" / f"{base}.yaml"))
     dev = auto_device(device)
     tc0 = dict(steps=steps, batch_size=32, lr=1e-3, optimizer="adam",
@@ -165,8 +166,10 @@ def sweep(base: str, knob: str, values: list, families: list, seeds: list,
             print(f"  [control] shuffled-pairs {family:<14} acc={ctrl[family]:.3f} (expect ~chance)")
         out["shuffled_pairs_control"] = ctrl
 
-    (_REPO / "reports" / "phase6_sweep.json").write_text(json.dumps(out, indent=2))
-    print(f"wrote {_REPO / 'reports' / 'phase6_sweep.json'}")
+    op = _REPO / out_path
+    op.parent.mkdir(parents=True, exist_ok=True)
+    op.write_text(json.dumps(out, indent=2))
+    print(f"wrote {op}")
     return out
 
 
@@ -184,12 +187,14 @@ def main():
     ap.add_argument("--recon-weight", type=float, default=0.3)
     ap.add_argument("--no-controls", action="store_true")
     ap.add_argument("--no-match-params", action="store_true")
+    ap.add_argument("--out", default="reports/phase6_sweep.json",
+                    help="output JSON path (use distinct paths for parallel sweeps)")
     a = ap.parse_args()
     # numeric knob values
     vals = [float(v) if a.knob != "n_components" else int(v) for v in a.values]
     sweep(a.base, a.knob, vals, a.families, a.seeds, a.steps, a.n_train,
           a.device, a.recon_weight, controls=not a.no_controls,
-          match_params=not a.no_match_params)
+          match_params=not a.no_match_params, out_path=a.out)
 
 
 if __name__ == "__main__":

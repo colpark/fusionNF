@@ -78,12 +78,15 @@ def knob_figure(data: dict, out: Path):
 
 
 def main():
-    path = _REPO / "reports" / "phase6_sweep.json"
+    import sys
+    rel = sys.argv[1] if len(sys.argv) > 1 else "reports/phase6_sweep.json"
+    path = _REPO / rel
     if not path.exists():
-        raise SystemExit("run src.sweep.runner first (no reports/phase6_sweep.json)")
+        raise SystemExit(f"no sweep JSON at {path} (run src.sweep.runner first)")
     data = json.loads(path.read_text())
-    pareto_figure(data, _REPO / "reports" / "phase6_pareto.png")
-    knob_figure(data, _REPO / "reports" / "phase6_knob.png")
+    stem = str(path).rsplit(".json", 1)[0]              # figures named after the JSON
+    pareto_figure(data, stem + "_pareto.png")
+    knob_figure(data, stem + "_knob.png")
 
 
 if __name__ == "__main__":

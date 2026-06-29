@@ -58,10 +58,11 @@ VALUES ?= -6 -3 0 6 12
 SEEDS  ?= 0 1 2
 FAMILIES ?=
 FAMFLAG := $(if $(strip $(FAMILIES)),--families $(FAMILIES),)
+OUT ?= reports/phase6_sweep.json
 sweep:
 	$(PY) -m src.sweep.runner --base $(BASE) --knob $(KNOB) --values $(VALUES) \
-		--seeds $(SEEDS) --steps $(STEPS) --n-train $(NTRAIN) $(FAMFLAG) $(DEVFLAG)
-	$(PY) -m src.sweep.pareto
+		--seeds $(SEEDS) --steps $(STEPS) --n-train $(NTRAIN) $(FAMFLAG) $(DEVFLAG) --out $(OUT)
+	$(PY) -m src.sweep.pareto $(OUT)
 
 # Phase 7: regenerate findings.md from saved artifacts (single reproduce command).
 report:
