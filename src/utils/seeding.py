@@ -27,8 +27,12 @@ def set_seed(seed: int) -> None:
 def enable_determinism() -> None:
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-    # warn_only: MPS/CPU lack deterministic kernels for some ops; surface a warning
-    # rather than crash, and let tests/test_determinism.py verify actual stability.
+    # cuBLAS matmul determinism on CUDA (needed for reproducible transformer runs);
+    # harmless on CPU/MPS. Must be set before the first CUDA matmul.
+    os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+    # warn_only: some ops (incl. a few used on MPS/CUDA) lack deterministic kernels;
+    # surface a warning rather than crash. Full bit-reproducibility on GPU is not
+    # guaranteed for every op -- this is why comparisons use multiple seeds.
     try:
         torch.use_deterministic_algorithms(True, warn_only=True)
     except Exception:

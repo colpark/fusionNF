@@ -72,11 +72,27 @@ def evaluate(model: BaseFusion, loader, stats: NormStats, device: str) -> float:
     return correct / max(1, total)
 
 
+def seeded_build(family: str, model_cfg: ModelConfig, data_cfg: DataConfig,
+                 seed: int) -> BaseFusion:
+    """Seed the global RNG, then build -- so model-weight init is reproducible.
+
+    (train_model re-seeds before the training loop; seeding here makes the *init*
+    deterministic too, which it otherwise was not.)
+    """
+    set_seed(seed)
+    return build_model(family, model_cfg, data_cfg)
+
+
 def train_model(model: BaseFusion, data_cfg: DataConfig, model_cfg: ModelConfig,
                 train_cfg: TrainConfig, base_seed: int,
                 run_dir: str | None = None, recon_weight: float = 1.0,
-                logger=None) -> dict:
-    """Train one model and return ``{test_acc, val_acc, n_params, train_loss}``."""
+                logger=None, warmup_frac: float = 0.1,
+                grad_clip: float = 1.0) -> dict:
+    """Train one model and return ``{test_acc, val_acc, n_params, train_loss}``.
+
+    Applies LR warmup + gradient clipping uniformly to every family (fair under
+    budget matching; transformers need warmup to train stably with Adam, and CNN/NF
+    arms are unaffected by it)."""
     set_seed(base_seed)
     device = train_cfg.device
 
@@ -89,11 +105,16 @@ def train_model(model: BaseFusion, data_cfg: DataConfig, model_cfg: ModelConfig,
     bce = nn.BCEWithLogitsLoss()
     has_recon = hasattr(model, "recon_loss")
 
+    warmup_steps = max(1, int(warmup_frac * train_cfg.steps))
     model.train()
     running = 0.0
     last_loss = float("nan")
     stream = _infinite(loaders["train"])
     for step, batch in enumerate(islice(stream, train_cfg.steps), start=1):
+        # linear LR warmup then constant (stabilizes the cross-attention transformer)
+        lr_scale = min(1.0, step / warmup_steps)
+        for g in opt.param_groups:
+            g["lr"] = train_cfg.lr * lr_scale
         b = _prep(batch, stats, device)
         encoded = model.encode(b["A"], b["t_A"], b["B"], b["t_B"])
         logit = model.fuse(encoded)
@@ -102,6 +123,8 @@ def train_model(model: BaseFusion, data_cfg: DataConfig, model_cfg: ModelConfig,
             loss = loss + recon_weight * model.recon_loss(encoded)
         opt.zero_grad(set_to_none=True)
         loss.backward()
+        if grad_clip and grad_clip > 0:
+            nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
         opt.step()
 
         last_loss = float(loss.detach().item())
@@ -138,7 +161,7 @@ def _flop_split(model: BaseFusion, batch: dict) -> tuple[int, int]:
     return enc_flops, fuse_flops
 
 
-def gate_run(config: str = "easy", steps: int = 3000, n_train: int = 1024,
+def gate_run(config: str = "easy", steps: int = 5000, n_train: int = 1024,
              device: str | None = None, recon_weight: float = 0.3,
              seed: int | None = None) -> dict:
     """Train all four families on a config and report acc + FLOP split.
@@ -173,7 +196,7 @@ def gate_run(config: str = "easy", steps: int = 3000, n_train: int = 1024,
         model_cfg = ModelConfig(family=family, hidden=exp.model.hidden,
                                 depth=exp.model.depth,
                                 latent_dim=exp.model.latent_dim)
-        model = build_model(family, model_cfg, data_cfg)
+        model = seeded_build(family, model_cfg, data_cfg, base_seed)
         # recon weight < 1 so the field's reconstruction objective shapes the latent
         # without starving the correspondence classifier (NF arms only).
         res = train_model(model, data_cfg, model_cfg, tc, base_seed,
@@ -202,7 +225,7 @@ def gate_run(config: str = "easy", steps: int = 3000, n_train: int = 1024,
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Phase 4 gate: train the four fusion families.")
     ap.add_argument("--config", default="easy")
-    ap.add_argument("--steps", type=int, default=3000)
+    ap.add_argument("--steps", type=int, default=5000)
     ap.add_argument("--n-train", type=int, default=1024)
     ap.add_argument("--device", default=None, help="cuda|mps|cpu (default: auto)")
     ap.add_argument("--recon-weight", type=float, default=0.3)

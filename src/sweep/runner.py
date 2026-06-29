@@ -27,7 +27,7 @@ from ..data.dataset import make_loaders
 from ..data.transforms import apply_norm, fit_norm
 from ..utils.device import auto_device
 from ..models.registry import build_model, FAMILIES
-from ..models.train import train_model, _flop_split, _prep
+from ..models.train import train_model, seeded_build, _flop_split, _prep
 from ..probe.frequency_probe import probe_model
 
 _REPO = Path(__file__).resolve().parents[2]
@@ -56,7 +56,7 @@ def run_cell(family: str, dc: DataConfig, exp_model: ModelConfig, tc: TrainConfi
     """Train one family on one config/seed; return accuracy, probe-R^2, FLOPs."""
     mc = ModelConfig(family=family, hidden=exp_model.hidden, depth=exp_model.depth,
                      latent_dim=exp_model.latent_dim)
-    model = build_model(family, mc, dc)
+    model = seeded_build(family, mc, dc, seed)
     res = train_model(model, dc, mc, tc, seed, recon_weight=recon_weight)
     pr = probe_model(model, dc, seed, min(tc.n_train, probe_n), tc.n_test, device=tc.device)
     # FLOP split on one normalized batch

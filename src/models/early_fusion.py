@@ -41,13 +41,18 @@ class _Tokenizer(nn.Module):
         self.embed = nn.Conv1d(1, d_model, kernel_size=patch, stride=patch)
         # Positional encoding from the (already [0,1]) coordinate of each patch.
         self.pos = mlp([1, d_model, d_model])
+        # LayerNorm so token magnitudes are comparable across modalities even when
+        # their patch sizes differ (A and B have different sample rates -> different
+        # patches); without it the transformer sees mismatched-scale tokens and
+        # trains unstably.
+        self.norm = nn.LayerNorm(d_model)
 
     def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         tok = self.embed(x.unsqueeze(1)).transpose(1, 2)      # (B, T, d)
         T = tok.shape[1]
         # Downsample coordinates to one value per token, robust to off-by-one.
         coord = F.adaptive_avg_pool1d(t.unsqueeze(1), T).transpose(1, 2)  # (B, T, 1)
-        return tok + self.pos(coord)                          # (B, T, d)
+        return self.norm(tok + self.pos(coord))               # (B, T, d)
 
 
 class EarlyFusion(BaseFusion):

@@ -29,8 +29,7 @@ from numpy.fft import irfft, rfft, rfftfreq
 from ..config import ModelConfig, TrainConfig, load_experiment
 from ..data.dataset import make_loaders
 from ..data.transforms import apply_norm, fit_norm
-from .registry import build_model
-from .train import train_model
+from .train import train_model, seeded_build
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _REPORTS = _REPO_ROOT / "reports"
@@ -114,7 +113,7 @@ def run() -> str:
         model_cfg = ModelConfig(family=family, hidden=exp.model.hidden,
                                 depth=exp.model.depth,
                                 latent_dim=exp.model.latent_dim)
-        model = build_model(family, model_cfg, data_cfg)
+        model = seeded_build(family, model_cfg, data_cfg, base_seed)
         res = train_model(model, data_cfg, model_cfg, tc, base_seed)
         orig_a, recon_a, orig_b, recon_b = _reconstruct(model, eval_batch)
         snr_a = band_snr(orig_a, recon_a, rate_a, bands_a)

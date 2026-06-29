@@ -134,8 +134,8 @@ def run(config: str = "easy", steps: int = 3000, n_train: int = 1024,
     from pathlib import Path
     from ..config import ModelConfig, TrainConfig, load_experiment
     from ..utils.device import auto_device
-    from ..models.registry import build_model, FAMILIES
-    from ..models.train import train_model
+    from ..models.registry import FAMILIES
+    from ..models.train import train_model, seeded_build
 
     repo = Path(__file__).resolve().parents[2]
     exp = load_experiment(str(repo / "configs" / f"{config}.yaml"))
@@ -151,7 +151,7 @@ def run(config: str = "easy", steps: int = 3000, n_train: int = 1024,
     for fam in FAMILIES:
         mc = ModelConfig(family=fam, hidden=exp.model.hidden, depth=exp.model.depth,
                          latent_dim=exp.model.latent_dim)
-        model = build_model(fam, mc, dc)
+        model = seeded_build(fam, mc, dc, base_seed)
         res = train_model(model, dc, mc, tc, base_seed, recon_weight=0.3)
         pr = probe_model(model, dc, base_seed, n_train, tc.n_test, device=dev)
         results[fam] = {"fusion_acc": res["test_acc"], **pr}

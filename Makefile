@@ -24,7 +24,7 @@ baselines:
 
 # Phase 4: train the four fusion families (auto-detects GPU). Override CONFIG/STEPS/NTRAIN.
 CONFIG ?= easy
-STEPS  ?= 3000
+STEPS  ?= 5000
 NTRAIN ?= 1024
 train:
 	$(PY) -m src.models.train --config $(CONFIG) --steps $(STEPS) --n-train $(NTRAIN)
