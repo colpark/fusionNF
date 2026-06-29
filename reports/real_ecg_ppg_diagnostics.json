@@ -1,0 +1,16 @@
+{
+  "records": 16,
+  "n_test": 600,
+  "oracle_acc": 1.0,
+  "classical_acc": 0.875,
+  "within_window_HR_spread_bpm_median": 2.3366475105285645,
+  "negative_HR_gap_frac": {
+    "<2bpm": 0.06209150326797386,
+    "<5bpm": 0.16013071895424835,
+    "<10bpm": 0.20915032679738563
+  },
+  "classical_HR_estimation_error_bpm": {
+    "ecg_bpm": 0.3984616750282033,
+    "ppg_bpm": 1.0625849526102993
+  }
+}

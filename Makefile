@@ -1,4 +1,4 @@
-.PHONY: smoke test data validate baselines train recon probe sweep report clean bidmc-data real-ecg-ppg
+.PHONY: smoke test data validate baselines train recon probe sweep report clean bidmc-data real-ecg-ppg bidmc-diagnose
 
 PY ?= python3
 
@@ -50,6 +50,10 @@ bidmc-data:
 
 real-ecg-ppg:
 	$(PY) -m src.real.train_real --steps $(STEPS) --seeds 0 1 2 $(DEVFLAG)
+
+# Real ECG+PPG task diagnostics (oracle + classical bracket; CPU).
+bidmc-diagnose:
+	$(PY) -m src.real.diagnose
 
 # Phase 6: difficulty x family sweep -> Pareto + knob figures. Override BASE/KNOB/etc.
 BASE   ?= hard
