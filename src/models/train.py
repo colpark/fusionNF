@@ -87,18 +87,20 @@ def train_model(model: BaseFusion, data_cfg: DataConfig, model_cfg: ModelConfig,
                 train_cfg: TrainConfig, base_seed: int,
                 run_dir: str | None = None, recon_weight: float = 1.0,
                 logger=None, warmup_frac: float = 0.1,
-                grad_clip: float = 1.0) -> dict:
+                grad_clip: float = 1.0, loaders=None, stats=None) -> dict:
     """Train one model and return ``{test_acc, val_acc, n_params, train_loss}``.
 
-    Applies LR warmup + gradient clipping uniformly to every family (fair under
-    budget matching; transformers need warmup to train stably with Adam, and CNN/NF
-    arms are unaffected by it)."""
+    `loaders`/`stats` may be supplied (e.g. real-data loaders) to bypass the synthetic
+    generator path; otherwise they are built from `data_cfg`. LR warmup + grad clipping
+    are applied uniformly to every family."""
     set_seed(base_seed)
     device = train_cfg.device
 
-    loaders = make_loaders(data_cfg, base_seed, train_cfg.n_train,
-                           train_cfg.n_val, train_cfg.n_test, train_cfg.batch_size)
-    stats = fit_norm(data_cfg, base_seed, train_cfg.n_train)
+    if loaders is None:
+        loaders = make_loaders(data_cfg, base_seed, train_cfg.n_train,
+                               train_cfg.n_val, train_cfg.n_test, train_cfg.batch_size)
+    if stats is None:
+        stats = fit_norm(data_cfg, base_seed, train_cfg.n_train)
 
     model = model.to(device)
     opt = _make_optimizer(model, train_cfg)

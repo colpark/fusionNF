@@ -1,4 +1,4 @@
-.PHONY: smoke test data validate baselines train recon probe sweep report clean
+.PHONY: smoke test data validate baselines train recon probe sweep report clean bidmc-data real-ecg-ppg
 
 PY ?= python3
 
@@ -36,6 +36,14 @@ recon:
 # Phase 5: probe diagnostic (f(t) decodability vs fusion accuracy).
 probe:
 	$(PY) -m src.probe.frequency_probe --config $(CONFIG) --steps $(STEPS) --n-train $(NTRAIN)
+
+# Real ECG+PPG (BIDMC): download data, then train the four families on real correspondence.
+N ?= 53
+bidmc-data:
+	bash scripts/download_bidmc.sh $(N)
+
+real-ecg-ppg:
+	$(PY) -m src.real.train_real --steps $(STEPS) --seeds 0 1 2
 
 # Phase 6: difficulty x family sweep -> Pareto + knob figures. Override BASE/KNOB/etc.
 BASE   ?= hard

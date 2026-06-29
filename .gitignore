@@ -8,3 +8,6 @@ runs/
 # Keep reports/ tracked (gate reports, figures, findings) but ignore stray large artifacts:
 reports/**/*.pt
 reports/**/*.npz
+
+# raw datasets (do not commit)
+data/
