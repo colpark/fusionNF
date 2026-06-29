@@ -15,6 +15,7 @@ from .late_fusion import LateFusion
 from .early_fusion import EarlyFusion
 from .neural_field.lainr import LAINRField
 from .neural_field.omnifield import OmniFieldFusion
+from .ablation import LateMBFF, LAINRReLU, LAINRSingleSigma
 
 # Two amortized neural-field arms (per user decision): LAINR (per-modality field +
 # fusion head) and OmniField (cross-modal crosstalk field). The auto-decoded
@@ -65,4 +66,25 @@ def build_model(family: str, model_cfg: ModelConfig,
     if family == "nf_omnifield":
         return OmniFieldFusion(hidden=hidden, latent_dim=latent, depth=depth)
 
+    # ---- field-vs-spectral ablation arms (additive; selected via --families) ----
+    if family == "late_mbff":            # spectral basis WITHOUT the field
+        return LateMBFF(hidden=hidden, latent_dim=latent, depth=depth,
+                        f_max=field_f_max(data_cfg))
+    if family == "lainr_relu":           # field WITHOUT the multi-band basis
+        return LAINRReLU(hidden=hidden, latent_dim=latent, depth=depth,
+                         f_max=field_f_max(data_cfg))
+    if family == "nf_lainr_single":      # field + single wide Gaussian FF (no multi-scale)
+        return LAINRSingleSigma(hidden=hidden, latent_dim=latent, depth=depth,
+                                f_max=field_f_max(data_cfg))
+    if family.startswith("nf_lainr_nb"): # LAINR with n_bands in {1,2,8} (nb4 == nf_lainr)
+        k = int(family.replace("nf_lainr_nb", ""))
+        return LAINRField(hidden=hidden, latent_dim=latent, depth=depth,
+                          n_bands=k, f_max=field_f_max(data_cfg))
+
     raise ValueError(f"unknown family {family!r}; expected one of {FAMILIES}")
+
+
+# Full ablation family set (for --families and parameter matching across the whole set).
+ABLATION_FAMILIES = ("late", "early", "nf_lainr", "nf_omnifield",
+                     "late_mbff", "lainr_relu", "nf_lainr_single",
+                     "nf_lainr_nb1", "nf_lainr_nb2", "nf_lainr_nb8")
