@@ -1,0 +1,49 @@
+{
+  "study": "synthetic_chirp_AM",
+  "device": "cuda",
+  "budget": {"steps": 5000, "n_train": 1024, "n_test": 256, "lr": 1e-3,
+             "warmup_frac": 0.1, "grad_clip": 1.0, "recon_weight": 0.3, "seeds": [0, 1, 2]},
+  "gate_easy_param_matched": {
+    "plan_hidden": {"late": 168, "early": 140, "nf_lainr": 64, "nf_omnifield": 76},
+    "test_acc": {"late": 0.922, "early": 0.898, "nf_lainr": 0.918, "nf_omnifield": 0.891},
+    "val_acc": {"late": 0.883, "early": 0.898, "nf_lainr": 0.891, "nf_omnifield": 0.867},
+    "params": {"late": 357065, "early": 367113, "nf_lainr": 351109, "nf_omnifield": 367909},
+    "enc_flops": {"late": 2482765824, "early": 90316800, "nf_lainr": 837287936, "nf_omnifield": 2375811072},
+    "fuse_flops": {"late": 2505216, "early": 1456008960, "nf_lainr": 790528, "nf_omnifield": 997120}
+  },
+  "gate_easy_not_matched": {
+    "test_acc": {"late": 0.926, "early": 0.930, "nf_lainr": 0.895, "nf_omnifield": 0.922},
+    "val_acc": {"late": 0.914, "early": 0.852, "nf_lainr": 0.891, "nf_omnifield": 0.906},
+    "params": {"late": 62849, "early": 80289, "nf_lainr": 351109, "nf_omnifield": 269125},
+    "enc_flops": {"late": 400556032, "early": 21364736, "nf_lainr": 837287936, "nf_omnifield": 1791492096},
+    "fuse_flops": {"late": 528384, "early": 341856256, "nf_lainr": 790528, "nf_omnifield": 790528}
+  },
+  "sweep_snr_db_param_matched": {
+    "values": [12, 6, 3, 0, -3, -6],
+    "acc": {
+      "late":        [0.835, 0.553, 0.492, 0.504, 0.496, 0.487],
+      "early":       [0.913, 0.803, 0.596, 0.552, 0.505, 0.521],
+      "nf_lainr":    [0.910, 0.868, 0.842, 0.806, 0.758, 0.547],
+      "nf_omnifield":[0.859, 0.819, 0.715, 0.608, 0.536, 0.530]
+    },
+    "acc_std": {
+      "late":        [0.105, 0.073, 0.023, 0.031, 0.028, 0.013],
+      "early":       [0.010, 0.016, 0.067, 0.046, 0.014, 0.027],
+      "nf_lainr":    [0.019, 0.013, 0.016, 0.005, 0.018, 0.078],
+      "nf_omnifield":[0.023, 0.022, 0.064, 0.039, 0.038, 0.029]
+    },
+    "linear_r2": {
+      "late":        [0.613, 0.481, 0.391, 0.371, 0.325, 0.316],
+      "early":       [0.606, 0.516, 0.493, 0.427, 0.381, 0.348],
+      "nf_lainr":    [0.879, 0.827, 0.859, 0.840, 0.753, 0.560],
+      "nf_omnifield":[0.902, 0.881, 0.777, 0.616, 0.397, 0.389]
+    },
+    "shuffled_pairs_control": {"late": 0.504, "early": 0.496, "nf_lainr": 0.516, "nf_omnifield": 0.488}
+  },
+  "verdicts": {
+    "P1_advantage_widens": "supported_param_matched",
+    "P2_nf_near_early_lower_fusion_flops": "supported_strengthened_pareto_dominant",
+    "P3_ft_more_decodable_from_nf_latent": "supported",
+    "P4_lainr_vs_omnifield": "lainr_wins"
+  }
+}
