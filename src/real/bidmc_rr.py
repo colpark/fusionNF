@@ -190,6 +190,47 @@ class UnimodalReg(nn.Module):
         return self.head(self.enc(x)).squeeze(-1)
 
 
+class _SpectralEncoder(nn.Module):
+    """RATE-AWARE read-out: band-limited log-magnitude spectrum of the window -> MLP.
+
+    The diagnosis: a temporal MEAN cannot encode a frequency, but RR *is* a frequency.
+    Taking |rFFT| of the whole window (then keeping the low band) yields a representation
+    whose dimensions ARE frequencies, so respiratory rate is directly readable. (Collapsing
+    over time in the spectral domain preserves frequency, unlike mean-pooling the signal.)"""
+    def __init__(self, n, rate, f_hi=4.0, hidden=128, out=64):
+        super().__init__()
+        freqs = np.fft.rfftfreq(n, d=1.0 / rate)
+        self.register_buffer("mask", torch.from_numpy((freqs <= f_hi)))
+        self.mlp = mlp([int((freqs <= f_hi).sum()), hidden, out], last_act=True)
+
+    def forward(self, x):                                  # (B, N) -> (B, out)
+        X = torch.fft.rfft(x - x.mean(dim=1, keepdim=True), dim=1).abs()
+        feat = torch.log1p(X[:, self.mask])
+        return self.mlp(feat)
+
+
+class SpectralReg(nn.Module):
+    """Rate-aware regressor: spectral feature(s) -> MLP -> scalar RR.
+    which in {'ecg','ppg','fuse'} (fuse = concat both modalities' spectra)."""
+    def __init__(self, which, n_e, rate_e, n_p, rate_p, hidden=128, out=64):
+        super().__init__(); self.which = which
+        if which in ("ecg", "fuse"):
+            self.enc_e = _SpectralEncoder(n_e, rate_e, hidden=hidden, out=out)
+        if which in ("ppg", "fuse"):
+            self.enc_p = _SpectralEncoder(n_p, rate_p, hidden=hidden, out=out)
+        d = out * (2 if which == "fuse" else 1)
+        self.head = mlp([d, hidden, 1])
+
+    def forward(self, A, t_A, B, t_B):
+        if self.which == "ecg":
+            z = self.enc_e(A)
+        elif self.which == "ppg":
+            z = self.enc_p(B)
+        else:
+            z = torch.cat([self.enc_e(A), self.enc_p(B)], dim=-1)
+        return self.head(z).squeeze(-1)
+
+
 def _dcfg(cfg):
     return DataConfig(name="bidmc_rr", duration=cfg.window_s,
                       trajectory=TrajectoryConfig(f_min=0.6, f_max=3.0),
@@ -197,10 +238,24 @@ def _dcfg(cfg):
                       modality_b=ModalityBConfig(rate=cfg.ppg_rate, carrier=999.0))
 
 
+SPEC_FAMILIES = ("spec_ecg", "spec_ppg", "spec_fuse")
+
+
 def _build(family, hidden, dcfg):
     if family in ("uni_ecg", "uni_ppg"):
         return UnimodalReg("ecg" if family == "uni_ecg" else "ppg", hidden=hidden)
+    if family in SPEC_FAMILIES:
+        n_e = int(dcfg.duration * dcfg.modality_a.rate); n_p = int(dcfg.duration * dcfg.modality_b.rate)
+        return SpectralReg(family.split("_")[1], n_e, dcfg.modality_a.rate, n_p, dcfg.modality_b.rate)
     return build_model(family, ModelConfig(family=family, hidden=hidden, depth=2, latent_dim=32), dcfg)
+
+
+def _make(family, hidden, dcfg, seed):
+    """Build any arm with seeded init (fusion arms via seeded_build for determinism)."""
+    set_seed(seed)
+    if family in _REPO_FAMILIES:
+        return seeded_build(family, ModelConfig(family=family, hidden=hidden, depth=2, latent_dim=32), dcfg, seed)
+    return _build(family, hidden, dcfg)
 
 
 def train_regressor(model, loaders, norm, rr_mean, rr_std, steps, lr, device,
@@ -250,7 +305,8 @@ def classical_bracket(wins, cfg):
         rp = rr_from_ppg(w["ppg"], cfg.ppg_rate, cfg)
         if np.isfinite(re): e.append(abs(re - w["rr"]))
         if np.isfinite(rp): p.append(abs(rp - w["rr"]))
-    return {"ecg_mae": float(np.median(e)), "ppg_mae": float(np.median(p))}
+    return {"ecg_mae": float(np.median(e)), "ppg_mae": float(np.median(p)),       # median (tail-robust)
+            "ecg_mae_mean": float(np.mean(e)), "ppg_mae_mean": float(np.mean(p))}  # MEAN (apples-to-apples vs neural)
 
 
 def run(cfg, families, steps, seeds, batch, device, match, lr=1e-3):
@@ -274,12 +330,11 @@ def run(cfg, families, steps, seeds, batch, device, match, lr=1e-3):
             print(f"REAL RR (BIDMC) | dev={dev} | records={len(paths)} | "
                   f"windows {[ (k,len(v)) for k,v in wins.items()]}")
             print(f"  bracket: predict-mean MAE={rr_baseline['predict_mean_mae']:.2f} bpm | "
-                  f"classical ECG MAE={br['ecg_mae']:.2f}, PPG MAE={br['ppg_mae']:.2f} bpm")
+                  f"classical PPG MAE={br['ppg_mae_mean']:.2f} (mean)/{br['ppg_mae']:.2f} (median) | "
+                  f"ECG {br['ecg_mae_mean']:.2f}/{br['ecg_mae']:.2f} bpm")
         for f in families:
             hidden = plan.get(f, (64, None))[0]
-            model = (UnimodalReg("ecg" if f == "uni_ecg" else "ppg", hidden=hidden)
-                     if f in ("uni_ecg", "uni_ppg")
-                     else seeded_build(f, ModelConfig(family=f, hidden=hidden, depth=2, latent_dim=32), dcfg, seed))
+            model = _make(f, hidden, dcfg, seed)
             mae = train_regressor(model, loaders, norm, rr_mean, rr_std, steps, lr, dev, seed=seed)
             res[f].append(mae); print(f"  seed {seed} {f:<14} test_MAE={mae:.2f} bpm")
 
@@ -306,7 +361,8 @@ def run(cfg, families, steps, seeds, batch, device, match, lr=1e-3):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--families", nargs="+",
-                    default=["uni_ecg", "uni_ppg", "late", "early", "nf_lainr", "nf_omnifield"])
+                    default=["uni_ecg", "uni_ppg", "late", "early", "nf_lainr", "nf_omnifield",
+                             "spec_ecg", "spec_ppg", "spec_fuse"])
     ap.add_argument("--steps", type=int, default=4000)
     ap.add_argument("--seeds", nargs="+", type=int, default=[0, 1, 2])
     ap.add_argument("--batch", type=int, default=32)

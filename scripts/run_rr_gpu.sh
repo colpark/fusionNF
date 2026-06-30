@@ -14,7 +14,7 @@ LOG="logs/rr_gpu.log"
     echo "[$(date)] downloading BIDMC..."; bash scripts/download_bidmc.sh 53
   fi
   uv run python -m src.real.bidmc_rr \
-       --families uni_ecg uni_ppg late early nf_lainr nf_omnifield \
+       --families uni_ecg uni_ppg late early nf_lainr nf_omnifield spec_ecg spec_ppg spec_fuse \
        --steps 4000 --seeds 0 1 2 --device "$DEVICE"
   echo "==== [$(date)] RR DONE -> reports/real_rr_results.json ===="
 } 2>&1 | tee -a "$LOG"

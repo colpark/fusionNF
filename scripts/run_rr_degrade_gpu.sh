@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 DEVICE="${DEVICE:-cuda:1}"
 mkdir -p logs reports data/bidmc
 LOG="logs/rr_degrade_gpu.log"
-FAM="uni_ecg uni_ppg late early nf_lainr nf_omnifield"
+FAM="uni_ecg uni_ppg late early nf_lainr nf_omnifield spec_ecg spec_ppg spec_fuse"
 {
   echo "==== [$(date)] RR-degradation START  DEVICE=$DEVICE ===="
   if ! ls data/bidmc/*_Signals.csv >/dev/null 2>&1; then
