@@ -1,4 +1,4 @@
-.PHONY: smoke test data validate baselines train recon probe sweep report clean bidmc-data real-ecg-ppg bidmc-diagnose real-rr
+.PHONY: smoke test data validate baselines train recon probe sweep report clean bidmc-data real-ecg-ppg bidmc-diagnose real-rr smfret smfret-data
 
 PY ?= python3
 
@@ -58,6 +58,14 @@ bidmc-diagnose:
 # Real fusion TASK A: respiratory-rate estimation (unimodal vs fusion; auto-GPU).
 real-rr:
 	$(PY) -m src.real.bidmc_rr --steps $(STEPS) --seeds 0 1 2 $(DEVFLAG)
+
+# smFRET (single-molecule FRET) experiment: simulator sweep + visualizations (auto-GPU).
+smfret:
+	$(PY) -m src.smfret.viz
+	$(PY) -m src.smfret.run --steps $(STEPS) --seeds 0 1 2 $(DEVFLAG)
+
+smfret-data:
+	bash scripts/download_kinsoft.sh
 
 # Phase 6: difficulty x family sweep -> Pareto + knob figures. Override BASE/KNOB/etc.
 BASE   ?= hard
