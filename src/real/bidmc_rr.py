@@ -26,7 +26,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 from numpy.fft import rfft, rfftfreq
-from scipy.signal import resample, find_peaks
+from scipy.signal import resample, find_peaks, butter, filtfilt
+
+from ..data.generator import octave_background, _apply_snr
 
 from ..config import ModelConfig, TrainConfig, DataConfig, TrajectoryConfig, ModalityAConfig, ModalityBConfig
 from ..utils.device import auto_device
@@ -50,6 +52,8 @@ class RRConfig:
     ppg_rate: float = 32.0
     resp_lo: float = 0.1          # respiratory band (Hz) ~6-36 bpm
     resp_hi: float = 0.6
+    preprocess: bool = False      # band-pass ECG [0.5,40] / PPG [0.05,8] (keeps respiration)
+    ppg_snr: float | None = None  # inject motion noise into PPG at this dB (degradation sweep)
     seed: int = 0
 
 
@@ -58,6 +62,16 @@ def _load(path):
     cols = arr.dtype.names
     g = lambda key: np.asarray(arr[next(c for c in cols if key in c.upper())], dtype=np.float64)
     return g("II"), g("PLETH"), g("RESP")
+
+
+def _bandpass(x, fs, lo, hi, order=3):
+    nyq = fs / 2.0
+    lo_, hi_ = max(1e-3, lo / nyq), min(0.99, hi / nyq)
+    if hi_ <= lo_:
+        return x
+    b, a = butter(order, [lo_, hi_], btype="band")
+    pad = 3 * max(len(a), len(b))
+    return filtfilt(b, a, x) if len(x) > pad else x
 
 
 def _dominant_freq(x, fs, lo, hi):
@@ -117,15 +131,22 @@ def build_windows(cfg: RRConfig):
     wins = {"train": [], "val": [], "test": []}
     for idx, path in enumerate(paths):
         ecg, ppg, resp = _load(path)
+        if cfg.preprocess:                          # band-pass (keeps respiratory band)
+            ecg = _bandpass(ecg, FS, 0.5, 40.0); ppg = _bandpass(ppg, FS, 0.05, 8.0)
         m = min(len(ecg), len(ppg), len(resp))
         for s in range(0, m - w + 1, hop):
             e, p, r = ecg[s:s + w], ppg[s:s + w], resp[s:s + w]
             rr = rr_from_resp(r, cfg)
             if not np.isfinite(rr):
                 continue
+            ecg_r = resample(e, We).astype(np.float32); ppg_r = resample(p, Wp).astype(np.float32)
+            if cfg.ppg_snr is not None:              # degrade PPG (motion noise at target SNR)
+                rng = np.random.default_rng(idx * 1_000_003 + s)
+                nb = octave_background(rng, Wp, cfg.ppg_rate, 6, 1.0)
+                noisy, _ = _apply_snr(ppg_r - ppg_r.mean(), nb, cfg.ppg_snr)
+                ppg_r = (noisy + ppg_r.mean()).astype(np.float32)
             wins[split[idx]].append(dict(
-                ecg=resample(e, We).astype(np.float32), ppg=resample(p, Wp).astype(np.float32),
-                t_ecg=t_e, t_ppg=t_p, rr=np.float32(rr), record=idx))
+                ecg=ecg_r, ppg=ppg_r, t_ecg=t_e, t_ppg=t_p, rr=np.float32(rr), record=idx))
     return wins, paths
 
 
@@ -269,10 +290,13 @@ def run(cfg, families, steps, seeds, batch, device, match, lr=1e-3):
         a = np.array(res[f]); summ[f] = {"mae_mean": float(a.mean()), "mae_std": float(a.std())}
         print(f"{f:<16}{a.mean():>18.2f} ± {a.std():.2f}")
     out = {"task": "bidmc_respiratory_rate", "window_s": cfg.window_s, "steps": steps,
-           "seeds": seeds, "bracket": rr_baseline, "results": summ}
+           "seeds": seeds, "preprocess": cfg.preprocess, "ppg_snr": cfg.ppg_snr,
+           "bracket": rr_baseline, "results": summ}
     os.makedirs("reports", exist_ok=True)
-    open("reports/real_rr_results.json", "w").write(json.dumps(out, indent=2))
-    print("\nwrote reports/real_rr_results.json")
+    tag = "real_rr" + ("_pp" if cfg.preprocess else "") + \
+          ("" if cfg.ppg_snr is None else f"_ppgsnr{cfg.ppg_snr:g}")
+    open(f"reports/{tag}_results.json", "w").write(json.dumps(out, indent=2))
+    print(f"\nwrote reports/{tag}_results.json")
     print("Read: fusion arms should beat the best UNIMODAL and approach the classical "
           "bracket; if NF > late/early as respiration gets fainter, the buried-factor "
           "claim transfers. predict-mean MAE is the no-skill floor.")
@@ -289,8 +313,11 @@ def main():
     ap.add_argument("--window", type=float, default=32.0)
     ap.add_argument("--device", default=None)
     ap.add_argument("--no-match-params", action="store_true")
+    ap.add_argument("--preprocess", action="store_true", help="band-pass ECG/PPG (keeps respiration)")
+    ap.add_argument("--ppg-snr", type=float, default=None,
+                    help="degrade PPG with motion noise at this dB (the buried-factor sweep)")
     a = ap.parse_args()
-    cfg = RRConfig(window_s=a.window)
+    cfg = RRConfig(window_s=a.window, preprocess=a.preprocess, ppg_snr=a.ppg_snr)
     run(cfg, a.families, a.steps, a.seeds, a.batch, a.device, match=not a.no_match_params)
 
 

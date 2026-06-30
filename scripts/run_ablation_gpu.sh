@@ -3,6 +3,7 @@
 # Survives logout when launched with nohup/tmux (see bottom). Logs -> logs/ablation_gpu.log
 # Outputs: reports/phase6_sweep_ablation.json (+ _pareto/_knob png), reports/phase6_sweep_recon0.json
 set -uo pipefail
+export PYTHONUNBUFFERED=1   # flush prints through tee/nohup (else log looks stalled)
 cd "$(dirname "$0")/.."                      # repo root
 DEVICE="${DEVICE:-cuda:0}"
 mkdir -p logs reports

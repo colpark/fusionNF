@@ -3,6 +3,7 @@
 # Survives logout via nohup/tmux (see bottom). Logs -> logs/rr_gpu.log
 # Output: reports/real_rr_results.json  (unimodal vs fusion RR MAE + classical bracket)
 set -uo pipefail
+export PYTHONUNBUFFERED=1   # flush prints through tee/nohup (else log looks stalled)
 cd "$(dirname "$0")/.."
 DEVICE="${DEVICE:-cuda:1}"
 mkdir -p logs reports data/bidmc

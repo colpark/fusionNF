@@ -3,6 +3,7 @@
 # Survives logout when launched with nohup/tmux (see bottom). Logs -> logs/cardiac_gpu.log
 # Outputs: reports/real_ecg_ppg_results.json (clean) + reports/real_ecg_ppg_snr<S>_results.json
 set -uo pipefail
+export PYTHONUNBUFFERED=1   # flush prints through tee/nohup (else log looks stalled)
 cd "$(dirname "$0")/.."                      # repo root
 DEVICE="${DEVICE:-cuda:1}"
 mkdir -p logs reports data/bidmc
